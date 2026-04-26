@@ -1,0 +1,43 @@
+{
+  "name": "pi-status",
+  "version": "0.1.0",
+  "description": "Pi extension that shows a terminal tab title spinner while pi is working.",
+  "type": "module",
+  "author": "Alvaro Rausell",
+  "homepage": "https://github.com/AlvaroRausell/pi-status#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlvaroRausell/pi-status.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AlvaroRausell/pi-status/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "terminal",
+    "status",
+    "spinner"
+  ],
+  "license": "MIT",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "0.70.2",
+    "@types/node": "25.6.0",
+    "typescript": "6.0.3"
+  }
+}
