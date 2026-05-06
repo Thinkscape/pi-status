@@ -750,21 +750,24 @@ export default function piStatus(pi: ExtensionAPI) {
       let cursor = 0;
       const container = new Container();
 
+      const enabledText = (enabled: boolean) =>
+        enabled ? theme.fg("success", "enabled") : theme.fg("warning", "disabled");
+
       const items = [
         {
-          label: () =>
-            `Status: ${state.enabled ? theme.fg("success", "enabled") : theme.fg("warning", "disabled")}`,
+          label: (selected: boolean) =>
+            `${selected ? theme.fg("accent", "Status: ") : "Status: "}${enabledText(state.enabled)}`,
           action: "toggle",
         },
         {
-          label: () =>
-            `Ghostty support: ${config.ghosttySupport ? theme.fg("success", "enabled") : theme.fg("warning", "disabled")}`,
+          label: (selected: boolean) =>
+            `${selected ? theme.fg("accent", "Ghostty support: ") : "Ghostty support: "}${enabledText(config.ghosttySupport)}`,
           action: "ghostty",
         },
-        { label: () => "Change components", action: "components" },
-        { label: () => "Change separator", action: "separator" },
-        { label: () => "Reset to defaults", action: "reset" },
-        { label: () => "Close", action: "close" },
+        { label: (selected: boolean) => selected ? theme.fg("accent", "Change components") : "Change components", action: "components" },
+        { label: (selected: boolean) => selected ? theme.fg("accent", "Change separator") : "Change separator", action: "separator" },
+        { label: (selected: boolean) => selected ? theme.fg("accent", "Reset to defaults") : "Reset to defaults", action: "reset" },
+        { label: (selected: boolean) => selected ? theme.fg("accent", "Close") : "Close", action: "close" },
       ];
 
       function statusLine(): string {
@@ -781,11 +784,10 @@ export default function piStatus(pi: ExtensionAPI) {
 
           for (let i = 0; i < items.length; i++) {
             const item = items[i]!;
-            const marker = i === cursor ? "›" : " ";
-            const line = `  ${marker} ${item.label()}`;
-            container.addChild(
-              new Text(i === cursor ? theme.fg("accent", line) : line, 1, 0),
-            );
+            const selected = i === cursor;
+            const marker = selected ? theme.fg("accent", "›") : " ";
+            const line = `  ${marker} ${item.label(selected)}`;
+            container.addChild(new Text(line, 1, 0));
           }
 
           tui.requestRender();
