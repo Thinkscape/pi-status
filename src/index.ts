@@ -33,6 +33,7 @@ type RuntimeState = {
   thinkingLevel: string;
   gitBranch: string;
   tokenUsage: number;
+  currentTool: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,7 @@ const ALL_COMPONENT_IDS = [
   "turn",
   "git_branch",
   "tools_count",
+  "current_tool",
 ] as const;
 
 type ComponentId = (typeof ALL_COMPONENT_IDS)[number];
@@ -72,6 +74,7 @@ const COMPONENT_LABELS: Record<ComponentId, string> = {
   turn: "Turn number",
   git_branch: "Git branch",
   tools_count: "Active tool count",
+  current_tool: "Current tool name",
 };
 
 const DEFAULT_CONFIG: PiStatusConfig = {
@@ -88,6 +91,7 @@ const DEFAULT_CONFIG: PiStatusConfig = {
     { id: "turn", enabled: false },
     { id: "git_branch", enabled: false },
     { id: "tools_count", enabled: false },
+    { id: "current_tool", enabled: false },
   ],
 };
 
@@ -234,6 +238,8 @@ function resolveComponentValue(
         return "";
       }
     }
+    case "current_tool":
+      return state.currentTool || "";
     default:
       return "";
   }
@@ -294,6 +300,7 @@ export default function piStatus(pi: ExtensionAPI) {
     thinkingLevel: "",
     gitBranch: "",
     tokenUsage: 0,
+    currentTool: "",
   };
 
   // Initialize thinking level
@@ -314,6 +321,7 @@ export default function piStatus(pi: ExtensionAPI) {
     }
     state.running = false;
     state.frameIndex = 0;
+    state.currentTool = "";
     setTitle(config, state, pi, ctx);
   }
 
@@ -331,6 +339,7 @@ export default function piStatus(pi: ExtensionAPI) {
     }
     state.running = false;
     state.frameIndex = 0;
+    state.currentTool = "";
 
     state.running = true;
     state.turnIndex = 1;
@@ -482,7 +491,9 @@ export default function piStatus(pi: ExtensionAPI) {
     ghosttyWorking(ctx);
   });
 
-  pi.on("tool_execution_start", async (_event, ctx) => {
+  pi.on("tool_execution_start", async (event, ctx) => {
+    state.currentTool = event.toolName;
+    setTitle(config, state, pi, ctx);
     ghosttyWorking(ctx);
   });
 
@@ -491,6 +502,8 @@ export default function piStatus(pi: ExtensionAPI) {
   });
 
   pi.on("tool_execution_end", async (_event, ctx) => {
+    state.currentTool = "";
+    setTitle(config, state, pi, ctx);
     ghosttyWorking(ctx);
   });
 

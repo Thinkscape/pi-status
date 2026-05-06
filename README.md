@@ -78,6 +78,7 @@ The order in the list determines the display order in the tab title. Changes are
 | `turn`          | Current turn number                   | off     |
 | `git_branch`    | Current git branch name               | off     |
 | `tools_count`   | Number of active tools                | off     |
+| `current_tool`  | Currently executing tool name         | off     |
 
 ### `separator`
 
@@ -123,7 +124,8 @@ Example with custom separator and additional components:
       { "id": "git_branch", "enabled": true },
       { "id": "tokens", "enabled": false },
       { "id": "turn", "enabled": false },
-      { "id": "tools_count", "enabled": false }
+      { "id": "tools_count", "enabled": false },
+      { "id": "current_tool", "enabled": false }
     ]
   }
 }
