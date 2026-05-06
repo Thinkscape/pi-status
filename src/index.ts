@@ -744,19 +744,23 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function showMainMenu(ctx: ExtensionCommandContext) {
-    const envNote = isDisabledByEnv() ? ` (${DISABLE_ENV} is set)` : "";
-
     const action = await ctx.ui.custom<string>((tui, theme, _kb, done) => {
       let cursor = 0;
       const container = new Container();
 
       const enabledText = (enabled: boolean) =>
         enabled ? theme.fg("success", "enabled") : theme.fg("warning", "disabled");
+      const statusText = () => {
+        if (!state.enabled && isDisabledByEnv()) {
+          return theme.fg("warning", "disabled") + theme.fg("dim", ` by ${DISABLE_ENV}`);
+        }
+        return enabledText(state.enabled);
+      };
 
       const items = [
         {
           label: (selected: boolean) =>
-            `${selected ? theme.fg("accent", "Status: ") : "Status: "}${enabledText(state.enabled)}`,
+            `${selected ? theme.fg("accent", "Status: ") : "Status: "}${statusText()}`,
           action: "toggle",
         },
         {
@@ -771,9 +775,7 @@ export default function piStatus(pi: ExtensionAPI) {
       ];
 
       function statusLine(): string {
-        const enabled = state.enabled ? "enabled" : "disabled";
-        const running = state.running ? "running" : "idle";
-        return `pi-status is ${enabled}, ${running}${envNote}`;
+        return "pi-status:";
       }
 
       function rebuild() {
