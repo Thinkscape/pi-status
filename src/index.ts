@@ -685,6 +685,8 @@ export default function piStatus(pi: ExtensionAPI) {
           }
           if (matchesKey(data, Key.space)) {
             comps[cursor]!.enabled = !comps[cursor]!.enabled;
+            config.components = comps;
+            setTitle(config, state, pi, ctx);
             rebuild();
             return;
           }
@@ -694,6 +696,8 @@ export default function piStatus(pi: ExtensionAPI) {
               comps[cursor - 1]!,
             ];
             cursor--;
+            config.components = comps;
+            setTitle(config, state, pi, ctx);
             rebuild();
             return;
           }
@@ -706,6 +710,8 @@ export default function piStatus(pi: ExtensionAPI) {
               comps[cursor]!,
             ];
             cursor++;
+            config.components = comps;
+            setTitle(config, state, pi, ctx);
             rebuild();
             return;
           }
