@@ -2,15 +2,7 @@
 
 A [pi](https://github.com/badlogic/pi-mono) extension that shows a **configurable status bar** in the terminal tab title while pi is working, then restores the title when the turn finishes. Also supports **Ghostty's native OSC 9;4 progress bar**.
 
-## Screenshots
-
-### Main menu (`/pi-status`)
-
-![Main menu](assets/screenshot-main-menu.png)
-
-### Component picker (`/pi-status components`)
-
-![Component picker](assets/screenshot-components.png)
+![Demo](assets/demo.gif)
 
 ## Install
 
@@ -23,6 +15,17 @@ Or test it for one run:
 ```bash
 pi -e @thinkscape/pi-status
 ```
+
+## Screenshots
+
+### Main menu (`/pi-status`)
+
+![Main menu](assets/screenshot-menu.png)
+
+### Component picker (`/pi-status components`)
+
+![Component picker](assets/screenshot-components.png)
+
 
 ## Commands
 
