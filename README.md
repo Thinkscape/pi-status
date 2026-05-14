@@ -1,31 +1,27 @@
-# pi-status
+# @thinkscape/pi-status
 
-A [pi](https://github.com/badlogic/pi-mono) extension that shows a configurable status bar in the terminal tab title while pi is working, then restores the title when the turn finishes.
+A [pi](https://github.com/badlogic/pi-mono) extension that shows a **configurable status bar** in the terminal tab title while pi is working, then restores the title when the turn finishes. Also supports **Ghostty's native OSC 9;4 progress bar**.
 
-The default title format is:
+## Screenshots
 
-```text
-⠋ - π - <session name> - <cwd>
-```
+### Main menu (`/pi-status`)
 
-If the session has no name, it uses:
+![Main menu](assets/screenshot-main-menu.png)
 
-```text
-⠋ - π - <cwd>
-```
+### Component picker (`/pi-status components`)
+
+![Component picker](assets/screenshot-components.png)
 
 ## Install
 
-From this checkout:
-
 ```bash
-pi install /absolute/path/to/pi-status
+pi install @thinkscape/pi-status
 ```
 
 Or test it for one run:
 
 ```bash
-pi -e /absolute/path/to/pi-status
+pi -e @thinkscape/pi-status
 ```
 
 ## Commands
@@ -146,6 +142,21 @@ Accepted truthy values are `1`, `true`, `yes`, and `on`.
 ## Development
 
 ```bash
-pnpm install
-pnpm run check
+bun install
+bun run check
 ```
+
+## Releasing
+
+```bash
+# Bump version only (patch/minor/major)
+bun run version:patch
+
+# Full release: check → bump → commit → tag
+bun run release:patch
+
+# Then push the tag to trigger GitHub Actions auto-publish:
+git push origin main --tags
+```
+
+CI runs on every PR (`bun run check` + dry-run pack). Tag pushes trigger the publish workflow to npm.

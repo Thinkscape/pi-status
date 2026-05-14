@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { Container, Text, matchesKey, Key } from "@mariozechner/pi-tui";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Container, Text, matchesKey, Key } from "@earendil-works/pi-tui";
 
 // ---------------------------------------------------------------------------
 // Types
