@@ -22,6 +22,7 @@ interface PiStatusConfig {
 type RuntimeState = {
   enabled: boolean;
   running: boolean;
+  destroyed: boolean;
   timer: ReturnType<typeof setInterval> | undefined;
   completionTimer: ReturnType<typeof setTimeout> | undefined;
   ghosttyKeepaliveTimer: ReturnType<typeof setInterval> | undefined;
@@ -275,6 +276,7 @@ function buildTitle(config: PiStatusConfig, state: RuntimeState, pi: ExtensionAP
 }
 
 function setTitle(config: PiStatusConfig, state: RuntimeState, pi: ExtensionAPI, ctx: ExtensionContext): void {
+  if (state.destroyed) return;
   if (!ctx.hasUI) return;
   ctx.ui.setTitle(buildTitle(config, state, pi, ctx));
 }
@@ -289,6 +291,7 @@ export default function piStatus(pi: ExtensionAPI) {
   const state: RuntimeState = {
     enabled: !isDisabledByEnv(),
     running: false,
+    destroyed: false,
     timer: undefined,
     completionTimer: undefined,
     ghosttyKeepaliveTimer: undefined,
@@ -311,6 +314,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   function stop(ctx: ExtensionContext): void {
+    if (state.destroyed) return;
     if (state.timer) {
       clearInterval(state.timer);
       state.timer = undefined;
@@ -326,6 +330,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   function start(ctx: ExtensionContext): void {
+    if (state.destroyed) return;
     if (!ctx.hasUI || !state.enabled) return;
 
     // Clean up any previous timer state.
@@ -371,6 +376,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   function ghosttyWorking(ctx: ExtensionContext): void {
+    if (state.destroyed) return;
     if (!ctx.hasUI || !state.enabled || !config.ghosttySupport) return;
     if (state.completionTimer) {
       clearTimeout(state.completionTimer);
@@ -386,6 +392,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   function ghosttyComplete(ctx: ExtensionContext): void {
+    if (state.destroyed) return;
     if (!ctx.hasUI || !config.ghosttySupport) return;
     ghosttyStopKeepalive();
     if (state.completionTimer) {
@@ -397,6 +404,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   function installTerminalInteractionHandler(ctx: ExtensionContext): void {
+    if (state.destroyed) return;
     if (!ctx.hasUI || state.terminalInputUnsubscribe) return;
     state.terminalInputUnsubscribe = ctx.ui.onTerminalInput((data) => {
       if (data === GHOSTTY_FOCUS_IN) {
@@ -414,6 +422,7 @@ export default function piStatus(pi: ExtensionAPI) {
   // ── Lifecycle events ──────────────────────────────────────────────────
 
   pi.on("session_start", async (_event, ctx) => {
+    if (state.destroyed) return;
     // Re-read config on session start (may have changed between sessions)
     config = readPiStatusConfig();
 
@@ -439,10 +448,12 @@ export default function piStatus(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("agent_start", async (_event, ctx) => {
+    if (state.destroyed) return;
     // Reassert Ghostty progress immediately. Do this before any awaited work
     // so a previous completion-clear timer cannot fire while pi is already working.
     ghosttyWorking(ctx);
@@ -456,6 +467,7 @@ export default function piStatus(pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", async (_event, ctx) => {
+    if (state.destroyed) return;
     stop(ctx);
     if (ctx.isIdle() && !ctx.hasPendingMessages()) {
       ghosttyComplete(ctx);
@@ -467,55 +479,67 @@ export default function piStatus(pi: ExtensionAPI) {
   });
 
   pi.on("turn_start", async (event, ctx) => {
+    if (state.destroyed) return;
     state.turnIndex = event.turnIndex;
     ghosttyWorking(ctx);
   });
 
   pi.on("context", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("before_provider_request", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("after_provider_response", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("message_start", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("message_update", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("tool_execution_start", async (event, ctx) => {
+    if (state.destroyed) return;
     state.currentTool = event.toolName;
     setTitle(config, state, pi, ctx);
     ghosttyWorking(ctx);
   });
 
   pi.on("tool_execution_update", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("tool_execution_end", async (_event, ctx) => {
+    if (state.destroyed) return;
     state.currentTool = "";
     setTitle(config, state, pi, ctx);
     ghosttyWorking(ctx);
   });
 
   pi.on("tool_result", async (_event, ctx) => {
+    if (state.destroyed) return;
     ghosttyWorking(ctx);
   });
 
   pi.on("turn_end", async (_event, ctx) => {
+    if (state.destroyed) return;
     if (!ctx.isIdle() || ctx.hasPendingMessages()) ghosttyWorking(ctx);
   });
 
   pi.on("model_select", async (event, _ctx) => {
+    if (state.destroyed) return;
     state.modelName = event.model.id || `${event.model.provider}/${event.model.id}`;
     // Refresh title if idle
     if (!state.running && state.enabled && _ctx) {
@@ -529,11 +553,13 @@ export default function piStatus(pi: ExtensionAPI) {
     disableFocusReporting();
     state.terminalInputUnsubscribe?.();
     state.terminalInputUnsubscribe = undefined;
+    state.destroyed = true;
   });
 
   // ── Command: /pi-status ──────────────────────────────────────────────
 
   async function handleOn(ctx: ExtensionContext) {
+    if (state.destroyed) return;
     state.enabled = true;
     if (state.running) start(ctx);
     else setTitle(config, state, pi, ctx);
@@ -541,6 +567,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function handleOff(ctx: ExtensionContext) {
+    if (state.destroyed) return;
     state.enabled = false;
     stop(ctx);
     ghosttyClear();
@@ -548,6 +575,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function handleComponents(ctx: ExtensionCommandContext) {
+    if (state.destroyed) return;
     const comps = config.components.map((c) => ({ ...c }));
 
     await ctx.ui.custom((tui, theme, _kb, done) => {
@@ -698,6 +726,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function handleSeparator(ctx: ExtensionCommandContext) {
+    if (state.destroyed) return;
     const newChar = await ctx.ui.input(
       `Current separator: "${config.separator}". Enter new separator:`,
       config.separator,
@@ -723,6 +752,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function handleReset(ctx: ExtensionCommandContext) {
+    if (state.destroyed) return;
     const ok = await ctx.ui.confirm(
       "Reset pi-status config?",
       "This restores the default status bar components and separator. Continue?",
@@ -741,6 +771,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function handleGhostty(ctx: ExtensionCommandContext, enable: boolean) {
+    if (state.destroyed) return;
     config.ghosttySupport = enable;
     writePiStatusConfig(config);
     if (enable) {
@@ -757,6 +788,7 @@ export default function piStatus(pi: ExtensionAPI) {
   }
 
   async function showMainMenu(ctx: ExtensionCommandContext) {
+    if (state.destroyed) return;
     const action = await ctx.ui.custom<string>((tui, theme, _kb, done) => {
       let cursor = 0;
       const container = new Container();
@@ -879,6 +911,7 @@ export default function piStatus(pi: ExtensionAPI) {
       "Control the tab title spinner. Subcommands: on, off, components, separator, reset, ghostty [on|off]. " +
       "No argument shows a menu.",
     handler: async (args, ctx) => {
+      if (state.destroyed) return;
       const parts = args.trim().toLowerCase().split(/\s+/);
       const sub = parts[0]!;
 
