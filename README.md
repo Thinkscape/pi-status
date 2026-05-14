@@ -1,6 +1,6 @@
 # @thinkscape/pi-status
 
-A [pi](https://github.com/badlogic/pi-mono) extension that shows a **configurable status bar** in the terminal tab title while pi is working, then restores the title when the turn finishes. Also supports **Ghostty's native OSC 9;4 progress bar**.
+A [pi](https://github.com/badlogic/pi-mono) extension that shows a **configurable status bar** in the terminal tab title while pi is working, then restores the title when the turn finishes. Also supports **[Ghostty](https://github.com/ghostty-org/ghostty)'s native OSC 9;4 progress bar**. Compatible with all [libghostty](https://ghostty-org-ghostty.mintlify.app/api/overview)-based terminals like [cmux](https://github.com/manaflow-ai/cmux), [muxy](https://github.com/muxy-app/muxy), etc.
 
 ![Demo](assets/demo.gif)
 
