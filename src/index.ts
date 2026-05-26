@@ -393,7 +393,7 @@ export default function piStatus(pi: ExtensionAPI) {
 
   function ghosttyComplete(ctx: ExtensionContext): void {
     if (state.destroyed) return;
-    if (!ctx.hasUI || !config.ghosttySupport) return;
+    if (!ctx.hasUI || !state.enabled || !config.ghosttySupport) return;
     ghosttyStopKeepalive();
     if (state.completionTimer) {
       clearTimeout(state.completionTimer);
@@ -469,12 +469,14 @@ export default function piStatus(pi: ExtensionAPI) {
   pi.on("agent_end", async (_event, ctx) => {
     if (state.destroyed) return;
     stop(ctx);
-    if (ctx.isIdle() && !ctx.hasPendingMessages()) {
-      ghosttyComplete(ctx);
-    } else {
-      // Some pi flows emit agent_end between follow-up/steering work.
-      // If pi is not really back to user input, keep Ghostty in progress mode.
+    // In pi 0.75+, agent_end handlers are awaited as part of the active
+    // lifecycle, so ctx.isIdle() is still false while this handler is running.
+    // Treat agent_end itself as the end-of-run signal; only keep Ghostty in
+    // progress mode when pi still reports queued work.
+    if (ctx.hasPendingMessages()) {
       ghosttyWorking(ctx);
+    } else {
+      ghosttyComplete(ctx);
     }
   });
 
