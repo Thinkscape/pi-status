@@ -29,6 +29,9 @@ type RuntimeState = {
   ghosttyKeepaliveTimer: ReturnType<typeof setInterval> | undefined;
   ghosttySuccessVisible: boolean;
   terminalInputUnsubscribe: (() => void) | undefined;
+  titleRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+  titleRefreshInterval: ReturnType<typeof setInterval> | undefined;
+  titleRefreshStopTimer: ReturnType<typeof setTimeout> | undefined;
   frameIndex: number;
   turnIndex: number;
   modelName: string;
@@ -284,6 +287,51 @@ function setTitle(config: PiStatusConfig, state: RuntimeState, pi: ExtensionAPI,
   ctx.ui.setTitle(buildTitle(config, state, pi, ctx));
 }
 
+function isNameCommand(text: string | undefined): boolean {
+  return /^\/name(?:\s|$)/.test(text?.trimStart() ?? "");
+}
+
+function isRenameCommand(text: string | undefined): boolean {
+  return /^\/rename(?:\s|$)/.test(text?.trimStart() ?? "");
+}
+
+function scheduleTitleRefresh(
+  configRef: () => PiStatusConfig,
+  state: RuntimeState,
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+): void {
+  if (state.destroyed || !ctx.hasUI || !state.enabled) return;
+  if (state.titleRefreshTimer) clearTimeout(state.titleRefreshTimer);
+  state.titleRefreshTimer = setTimeout(() => {
+    state.titleRefreshTimer = undefined;
+    setTitle(configRef(), state, pi, ctx);
+  }, 0);
+}
+
+function scheduleTitleRefreshWindow(
+  configRef: () => PiStatusConfig,
+  state: RuntimeState,
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  durationMs = 35_000,
+): void {
+  if (state.destroyed || !ctx.hasUI || !state.enabled) return;
+  scheduleTitleRefresh(configRef, state, pi, ctx);
+  if (state.titleRefreshInterval) clearInterval(state.titleRefreshInterval);
+  if (state.titleRefreshStopTimer) clearTimeout(state.titleRefreshStopTimer);
+  state.titleRefreshInterval = setInterval(() => {
+    setTitle(configRef(), state, pi, ctx);
+  }, 250);
+  state.titleRefreshStopTimer = setTimeout(() => {
+    if (state.titleRefreshInterval) {
+      clearInterval(state.titleRefreshInterval);
+      state.titleRefreshInterval = undefined;
+    }
+    state.titleRefreshStopTimer = undefined;
+  }, durationMs);
+}
+
 // ---------------------------------------------------------------------------
 // Main extension
 // ---------------------------------------------------------------------------
@@ -301,6 +349,9 @@ export default function piStatus(pi: ExtensionAPI) {
     ghosttyKeepaliveTimer: undefined,
     ghosttySuccessVisible: false,
     terminalInputUnsubscribe: undefined,
+    titleRefreshTimer: undefined,
+    titleRefreshInterval: undefined,
+    titleRefreshStopTimer: undefined,
     frameIndex: 0,
     turnIndex: 0,
     modelName: "",
@@ -447,6 +498,14 @@ export default function piStatus(pi: ExtensionAPI) {
       if (data === GHOSTTY_FOCUS_OUT) {
         return { consume: true };
       }
+      if (matchesKey(data, Key.enter)) {
+        const editorText = ctx.ui.getEditorText();
+        if (isNameCommand(editorText)) {
+          scheduleTitleRefresh(() => config, state, pi, ctx);
+        } else if (isRenameCommand(editorText)) {
+          scheduleTitleRefreshWindow(() => config, state, pi, ctx);
+        }
+      }
       if (state.ghosttySuccessVisible) ghosttyClear();
       return undefined;
     });
@@ -588,6 +647,18 @@ export default function piStatus(pi: ExtensionAPI) {
     stop(ctx);
     ghosttyClear();
     disableFocusReporting();
+    if (state.titleRefreshTimer) {
+      clearTimeout(state.titleRefreshTimer);
+      state.titleRefreshTimer = undefined;
+    }
+    if (state.titleRefreshInterval) {
+      clearInterval(state.titleRefreshInterval);
+      state.titleRefreshInterval = undefined;
+    }
+    if (state.titleRefreshStopTimer) {
+      clearTimeout(state.titleRefreshStopTimer);
+      state.titleRefreshStopTimer = undefined;
+    }
     state.terminalInputUnsubscribe?.();
     state.terminalInputUnsubscribe = undefined;
     state.destroyed = true;
