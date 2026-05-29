@@ -343,15 +343,12 @@ export default function piStatus(pi: ExtensionAPI) {
    */
   function scheduleIdleReassert(ctx: ExtensionContext, delay: number): void {
     if (state.destroyed || state.running || !state.enabled || !ctx.hasUI) return;
-    const nameBefore = pi.getSessionName();
     state.idleTimer = setTimeout(() => {
       if (state.destroyed || state.running) return;
-      const nameAfter = pi.getSessionName();
-      if (nameAfter !== nameBefore) {
-        // Session name changed (pi-autoname or manual) — re-apply our title
-        setTitle(config, state, pi, ctx);
-      }
-      // Continue checking with exponential backoff
+      // Always re-apply our configured title — pi may have overridden it
+      // (e.g. on session_info_changed, rebind, or model switch)
+      setTitle(config, state, pi, ctx);
+      // Continue with exponential backoff
       scheduleIdleReassert(ctx, Math.min(delay * 2, IDLE_REASSERT_MAX_MS));
     }, delay);
   }
@@ -481,6 +478,7 @@ export default function piStatus(pi: ExtensionAPI) {
     } catch { /* ignore */ }
 
     setTitle(config, state, pi, ctx);
+    scheduleIdleReassert(ctx, IDLE_REASSERT_START_MS);
   });
 
   pi.on("before_agent_start", async (_event, ctx) => {
