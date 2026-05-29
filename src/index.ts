@@ -24,6 +24,7 @@ type RuntimeState = {
   running: boolean;
   destroyed: boolean;
   timer: ReturnType<typeof setInterval> | undefined;
+  idleTimer: ReturnType<typeof setTimeout> | undefined; // Recursive re-assert timeout when idle
   completionTimer: ReturnType<typeof setTimeout> | undefined;
   ghosttyKeepaliveTimer: ReturnType<typeof setInterval> | undefined;
   ghosttySuccessVisible: boolean;
@@ -43,6 +44,8 @@ type RuntimeState = {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const DEFAULT_INTERVAL_MS = 80;
+const IDLE_REASSERT_START_MS = 200; // First re-assert check after agent_end (catches pi-autoname)
+const IDLE_REASSERT_MAX_MS = 5000; // Max backoff between idle re-assert checks
 const GHOSTTY_KEEPALIVE_MS = 1000;
 const GHOSTTY_FOCUS_IN = "\x1b[I";
 const GHOSTTY_FOCUS_OUT = "\x1b[O";
@@ -293,6 +296,7 @@ export default function piStatus(pi: ExtensionAPI) {
     running: false,
     destroyed: false,
     timer: undefined,
+    idleTimer: undefined,
     completionTimer: undefined,
     ghosttyKeepaliveTimer: undefined,
     ghosttySuccessVisible: false,
@@ -327,6 +331,36 @@ export default function piStatus(pi: ExtensionAPI) {
     state.frameIndex = 0;
     state.currentTool = "";
     setTitle(config, state, pi, ctx);
+    // Schedule recursive re-assert to catch pi-autoname naming (which triggers pi's title override)
+    scheduleIdleReassert(ctx, IDLE_REASSERT_START_MS);
+  }
+
+  /**
+   * Recursively re-check session name and re-apply our title when it changes.
+   * Uses exponential backoff: starts at IDLE_REASSERT_START_MS, doubles each
+   * check up to IDLE_REASSERT_MAX_MS. This catches pi-autoname's async naming
+   * quickly (first check at 200ms) while using minimal resources when idle.
+   */
+  function scheduleIdleReassert(ctx: ExtensionContext, delay: number): void {
+    if (state.destroyed || state.running || !state.enabled || !ctx.hasUI) return;
+    const nameBefore = pi.getSessionName();
+    state.idleTimer = setTimeout(() => {
+      if (state.destroyed || state.running) return;
+      const nameAfter = pi.getSessionName();
+      if (nameAfter !== nameBefore) {
+        // Session name changed (pi-autoname or manual) — re-apply our title
+        setTitle(config, state, pi, ctx);
+      }
+      // Continue checking with exponential backoff
+      scheduleIdleReassert(ctx, Math.min(delay * 2, IDLE_REASSERT_MAX_MS));
+    }, delay);
+  }
+
+  function cancelIdleReassert(): void {
+    if (state.idleTimer) {
+      clearTimeout(state.idleTimer);
+      state.idleTimer = undefined;
+    }
   }
 
   function start(ctx: ExtensionContext): void {
@@ -342,6 +376,8 @@ export default function piStatus(pi: ExtensionAPI) {
       clearTimeout(state.completionTimer);
       state.completionTimer = undefined;
     }
+    // Cancel idle re-assert while spinner is running
+    cancelIdleReassert();
     state.running = false;
     state.frameIndex = 0;
     state.currentTool = "";
@@ -550,6 +586,7 @@ export default function piStatus(pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
+    cancelIdleReassert();
     stop(ctx);
     ghosttyClear();
     disableFocusReporting();
@@ -564,13 +601,17 @@ export default function piStatus(pi: ExtensionAPI) {
     if (state.destroyed) return;
     state.enabled = true;
     if (state.running) start(ctx);
-    else setTitle(config, state, pi, ctx);
+    else {
+      setTitle(config, state, pi, ctx);
+      scheduleIdleReassert(ctx, IDLE_REASSERT_START_MS);
+    }
     ctx.ui.notify("pi-status enabled", "info");
   }
 
   async function handleOff(ctx: ExtensionContext) {
     if (state.destroyed) return;
     state.enabled = false;
+    cancelIdleReassert();
     stop(ctx);
     ghosttyClear();
     ctx.ui.notify("pi-status disabled", "info");
@@ -774,7 +815,12 @@ export default function piStatus(pi: ExtensionAPI) {
     config = structuredClone(DEFAULT_CONFIG);
     writePiStatusConfig(config);
     state.enabled = !isDisabledByEnv();
-    setTitle(config, state, pi, ctx);
+    if (state.enabled && !state.running) {
+      setTitle(config, state, pi, ctx);
+      scheduleIdleReassert(ctx, IDLE_REASSERT_START_MS);
+    } else if (!state.enabled) {
+      cancelIdleReassert();
+    }
     ctx.ui.notify("pi-status config reset to defaults", "info");
   }
 
@@ -876,8 +922,12 @@ export default function piStatus(pi: ExtensionAPI) {
               state.enabled = !state.enabled;
               if (state.enabled) {
                 if (state.running) start(ctx);
-                else setTitle(config, state, pi, ctx);
+                else {
+                  setTitle(config, state, pi, ctx);
+                  scheduleIdleReassert(ctx, IDLE_REASSERT_START_MS);
+                }
               } else {
+                cancelIdleReassert();
                 stop(ctx);
                 ghosttyClear();
               }
