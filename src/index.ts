@@ -1,6 +1,6 @@
-import { homedir } from "node:os";
 import path from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Container, Text, matchesKey, Key } from "@earendil-works/pi-tui";
 
@@ -103,9 +103,11 @@ const DEFAULT_CONFIG: PiStatusConfig = {
 // Config persistence: read / write pi settings.json
 // ---------------------------------------------------------------------------
 
+// Global settings live in pi's agent dir (PI_CODING_AGENT_DIR, else
+// ~/.pi/agent), which pi's own getAgentDir resolves.
 function getSettingsPaths(): { global: string; project: string } {
   return {
-    global: path.join(homedir(), ".pi", "agent", "settings.json"),
+    global: path.join(getAgentDir(), "settings.json"),
     project: path.join(process.cwd(), ".pi", "settings.json"),
   };
 }
